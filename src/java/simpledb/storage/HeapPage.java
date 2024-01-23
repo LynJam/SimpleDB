@@ -21,6 +21,10 @@ public class HeapPage implements Page {
 
     final HeapPageId pid;
     final TupleDesc td;
+
+    /**
+     * heade是每个tuple slot的bitmap。如果bitmap中对应的某个tuple的bit是1，则这个tuple是有效的，否则无效（被删除或者没被初始化）
+     */
     final byte[] header;
     final Tuple[] tuples;
     final int numSlots;
@@ -73,8 +77,7 @@ public class HeapPage implements Page {
     */
     private int getNumTuples() {        
         // some code goes here
-        return 0;
-
+        return (int)Math.floor((BufferPool.getPageSize() * 8) / (td.getSize() * 8 + 1));
     }
 
     /**
@@ -82,10 +85,8 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {        
-        
         // some code goes here
-        return 0;
-                 
+        return (int) Math.ceil(getNumTuples() / 8.0);
     }
     
     /** Return a view of this page before it was modified
@@ -118,7 +119,7 @@ public class HeapPage implements Page {
      */
     public HeapPageId getId() {
     // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        return pid;
     }
 
     /**
@@ -288,7 +289,13 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+        int res = 0;
+        for(int i = 0; i < numSlots; ++i) {
+            if(!isSlotUsed(i)) {
+                ++res;
+            }
+        }
+        return res;
     }
 
     /**
@@ -296,7 +303,11 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return false;
+        // java 虚拟机是大端存储。
+        int quot = i / 8;
+        int remainder = i % 8;
+        byte bitIdx = header[quot];
+        return (bitIdx >> remainder & 1) == 1;
     }
 
     /**
@@ -313,7 +324,13 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        List<Tuple> filledTuples = new ArrayList<>();
+       for(int i = 0; i < tuples.length; ++i) {
+           if(isSlotUsed(i)) {
+               filledTuples.add(tuples[i]);
+           }
+       }
+         return filledTuples.iterator();
     }
 
 }

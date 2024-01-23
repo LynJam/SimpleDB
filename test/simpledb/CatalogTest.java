@@ -2,6 +2,7 @@ package simpledb;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
@@ -12,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import simpledb.TestUtil.SkeletonFile;
+import simpledb.common.Catalog;
 import simpledb.common.Database;
 import simpledb.common.Utility;
 import simpledb.storage.DbFile;
@@ -82,6 +84,7 @@ public class CatalogTest extends SimpleDbTestBase {
      */
     @Test public void handleDuplicateNames() {
     	int id3 = r.nextInt();
+        System.out.println("id1: " + id1 + " id2: " + id2 + " id3: " + id3);
     	Database.getCatalog().addTable(new SkeletonFile(id3, Utility.getTupleDesc(2)), name);
     	assertEquals(id3, Database.getCatalog().getTableId(name));
     }
