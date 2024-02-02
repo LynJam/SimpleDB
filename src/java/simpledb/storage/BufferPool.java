@@ -1,9 +1,9 @@
 package simpledb.storage;
 
+import java.util.List;
 import simpledb.common.Database;
 import simpledb.common.Permissions;
 import simpledb.common.DbException;
-import simpledb.common.DeadlockException;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
@@ -33,8 +33,9 @@ public class BufferPool {
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
 
-    private final ConcurrentHashMap<PageId, Page> pageMap;
+    private final LRUCache<PageId, Page> pageCache;
     private final int numPages;
+
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -44,7 +45,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         // some code goes here
         this.numPages = numPages;
-        pageMap = new ConcurrentHashMap<>();
+        pageCache = new LRUCache<>(numPages);
     }
     
     public static int getPageSize() {
@@ -79,16 +80,16 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
-        if(pageMap.containsKey(pid)) {
-            return pageMap.get(pid);
+        Page page = pageCache.get(pid);
+        if(pageCache.containKey(pid)) {
+            return page;
         }
-        if(pageMap.size() >= numPages) {
-            throw new DbException("BufferPool is full");
-            // evictPage();
+        if(pageCache.getSize() >= numPages) {
+             evictPage();
         }
         DbFile dbFile = Database.getCatalog().getDatabaseFile(pid.getTableId());
-        Page page = dbFile.readPage(pid);
-        pageMap.put(pid, page);
+        page = dbFile.readPage(pid);
+        pageCache.put(pid, page);
         return page;
     }
 
@@ -154,6 +155,13 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile databaseFile = Database.getCatalog()
+            .getDatabaseFile(tableId);
+        List<Page> pages = databaseFile.insertTuple(tid, t);
+        for(Page page : pages) {
+            page.markDirty(true, tid);
+            pageCache.put(page.getId(), page);
+        }
     }
 
     /**
@@ -169,10 +177,18 @@ public class BufferPool {
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
      */
-    public  void deleteTuple(TransactionId tid, Tuple t)
+    public void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile dbFile = Database.getCatalog()
+            .getDatabaseFile(t.getRecordId()
+                .getPageId()
+                .getTableId());
+        List<Page> pages = dbFile.deleteTuple(tid, t);
+        for(int i = 0; i < pages.size(); ++i) {
+            pages.get(i).markDirty(true, tid);
+        }
     }
 
     /**
@@ -197,6 +213,16 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        LRUCache<PageId, Page>.DLinkedNode head = pageCache.getHead();
+        LRUCache<PageId, Page>.DLinkedNode tail = pageCache.getTail();
+        while (head != tail) {
+            PageId key = head.key;
+            if (key != null && key.equals(pid)) {
+                pageCache.remove(key);
+                return;
+            }
+            head = head.next;
+        }
     }
 
     /**
@@ -206,6 +232,18 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+        Page page = pageCache.get(pid);
+        DbFile dbFile = Database.getCatalog()
+            .getDatabaseFile(pid.getTableId());
+        try {
+            TransactionId directed = page.isDirty();
+            if(directed != null) {
+                dbFile.writePage(page);
+                page.markDirty(false, null);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -222,6 +260,7 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
+        pageCache.discord();
     }
 
 }

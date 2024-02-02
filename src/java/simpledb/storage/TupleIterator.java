@@ -12,7 +12,7 @@ public class TupleIterator implements OpIterator {
 	 * 
 	 */
     private static final long serialVersionUID = 1L;
-    Iterator<Tuple> i = null;
+    Iterator<Tuple> it = null;
     TupleDesc td = null;
     Iterable<Tuple> tuples = null;
 
@@ -36,15 +36,15 @@ public class TupleIterator implements OpIterator {
     }
 
     public void open() {
-        i = tuples.iterator();
+        it = tuples.iterator();
     }
 
     public boolean hasNext() {
-        return i.hasNext();
+        return it.hasNext();
     }
 
     public Tuple next() {
-        return i.next();
+        return it.next();
     }
 
     public void rewind() {
@@ -57,6 +57,6 @@ public class TupleIterator implements OpIterator {
     }
 
     public void close() {
-        i = null;
+        it = null;
     }
 }

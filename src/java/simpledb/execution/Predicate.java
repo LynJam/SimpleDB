@@ -9,10 +9,13 @@ import java.io.Serializable;
  * Predicate compares tuples to a specified Field value.
  */
 public class Predicate implements Serializable {
+    private final int field;
+    private final Op op;
+    private final Field operand;
 
     private static final long serialVersionUID = 1L;
 
-    /** Constants used for return codes in Field.compare */
+    /** Constants used for return codes in Field.Compare */
     public enum Op implements Serializable {
         EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQ, GREATER_THAN_OR_EQ, LIKE, NOT_EQUALS;
 
@@ -59,6 +62,9 @@ public class Predicate implements Serializable {
      */
     public Predicate(int field, Op op, Field operand) {
         // some code goes here
+        this.field = field;
+        this.op = op;
+        this.operand = operand;
     }
 
     /**
@@ -67,7 +73,7 @@ public class Predicate implements Serializable {
     public int getField()
     {
         // some code goes here
-        return -1;
+        return this.field;
     }
 
     /**
@@ -76,7 +82,7 @@ public class Predicate implements Serializable {
     public Op getOp()
     {
         // some code goes here
-        return null;
+        return this.op;
     }
     
     /**
@@ -85,7 +91,7 @@ public class Predicate implements Serializable {
     public Field getOperand()
     {
         // some code goes here
-        return null;
+        return this.operand;
     }
     
     /**
@@ -100,7 +106,8 @@ public class Predicate implements Serializable {
      */
     public boolean filter(Tuple t) {
         // some code goes here
-        return false;
+        return t.getField(this.field)
+            .compare(this.op, this.operand);
     }
 
     /**
@@ -109,6 +116,9 @@ public class Predicate implements Serializable {
      */
     public String toString() {
         // some code goes here
-        return "";
+        StringBuilder sb = new StringBuilder();
+        sb.append("f = ").append(this.field).append(" op = ").append(this.op.toString())
+            .append(" operand = ").append(this.operand.toString());
+        return sb.toString();
     }
 }
