@@ -23,6 +23,8 @@ public class Insert extends Operator {
     private OpIterator child;
     private final int tableId;
     private final TupleDesc td;
+
+    private boolean state;
     /**
      * Constructor.
      *
@@ -43,6 +45,7 @@ public class Insert extends Operator {
         this.child = child;
         this.tableId = tableId;
         td = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"inserted records"});
+        state = false;
     }
 
     public TupleDesc getTupleDesc() {
@@ -82,6 +85,7 @@ public class Insert extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
+        if(state) return null; // 全部插入完毕时，返回null, 不然 hasNext 方法会出错
         BufferPool bufferPool = Database.getBufferPool();
         int recordCount = 0;
         while (child.hasNext()) {
@@ -94,6 +98,7 @@ public class Insert extends Operator {
         }
         Tuple tuple = new Tuple(this.td);
         tuple.setField(0, new IntField(recordCount));
+        state = true;
         return tuple;
     }
 

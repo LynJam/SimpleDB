@@ -137,6 +137,8 @@ public class HeapFile implements DbFile {
                 page.markDirty(true, tid);
                 list.add(page);
                 return list;
+            } else {
+                bufferPool.unsafeReleasePage(tid, new HeapPageId(tableId, i));
             }
         }
 
