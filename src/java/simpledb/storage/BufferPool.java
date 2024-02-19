@@ -5,6 +5,7 @@ import java.util.List;
 import simpledb.common.Database;
 import simpledb.common.DbException;
 import simpledb.common.Permissions;
+import simpledb.storage.LRUCache.DLinkedNode;
 import simpledb.transaction.LockManager;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
@@ -158,7 +159,8 @@ public class BufferPool {
         head = head.next;
         while (head != tail) {
             Page page = head.val;
-            if(page != null && page.isDirty() != null && page.isDirty().equals(tid)) {
+            if (page != null && page.isDirty() != null && page.isDirty()
+                .equals(tid)) {
                 pageCache.remove(page.getId());
                 try {
                     Page rollbackPage = Database.getBufferPool()
@@ -229,6 +231,27 @@ public class BufferPool {
         // some code goes here
         // not necessary for lab1
 
+        LRUCache<PageId, Page>.DLinkedNode head = pageCache.getHead();
+        LRUCache<PageId, Page>.DLinkedNode tail = pageCache.getTail();
+        while (head != tail) {
+            Page page = head.val;
+            if (page != null && page.isDirty() != null) {
+
+                DbFile databaseFile = Database.getCatalog().getDatabaseFile(page.getId().getTableId());
+                try {
+                    Database.getLogFile().logWrite(page.isDirty(), page.getBeforeImage(), page);
+                    Database.getLogFile().force();
+                    // value.markDirty(false, null);
+                    databaseFile.writePage(page);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+            head = head.next;
+        }
+
     }
 
     /**
@@ -265,6 +288,8 @@ public class BufferPool {
         try {
             TransactionId directed = page.isDirty();
             if (directed != null) {
+                Database.getLogFile().logWrite(directed, page.getBeforeImage(), page);
+                Database.getLogFile().force();
                 dbFile.writePage(page);
                 page.markDirty(false, null);
             }
@@ -294,7 +319,7 @@ public class BufferPool {
     }
 
     private void addToBufferPool(PageId pid, Page page) throws DbException {
-        if(pageCache.getSize() >= this.numPages && !pageCache.containKey(pid)) {
+        if (pageCache.getSize() >= this.numPages && !pageCache.containKey(pid)) {
             evictPage();
         }
         pageCache.put(pid, page);
